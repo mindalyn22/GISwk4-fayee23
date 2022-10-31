@@ -15,9 +15,10 @@ Ausoutline <- st_read(here("prac3_data", "gadm36_AUS.gpkg"),
 print(Ausoutline)
 st_crs(Ausoutline)$proj4string
 
-#only useful if there is no CRS
-Ausoutline <- Ausoutline %>%
-  st_set_crs(., 4326)
+##set spatial reference system, only useful if there is no CRS
+#Ausoutline <- st_read(here("prac3_data", "gadm36_AUS.gpkg"), 
+#                      layer='gadm36_AUS_0') %>% 
+#  st_set_crs(4326)
 ```
 
 ```{r}
