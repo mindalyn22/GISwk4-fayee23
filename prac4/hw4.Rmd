@@ -27,6 +27,7 @@ creat column
 ```{r}
 gend_in_diff <- gender_inequality %>%
   mutate(diff1910 = gdi_2019 - gdi_2010)
+  
 ```
 
 join data
