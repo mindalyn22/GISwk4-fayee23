@@ -10,49 +10,122 @@ library(here)
 library(janitor)
 library(tidyverse)
 library(readr)
+library(countrycode)
 ```
 
 
 read in data
 ```{r}
-world_countries <- sf::st_read(here("prac4_data", "World_Countries_(Generalized)", "World_Countries__Generalized_.shp"))
+world_countries <- sf::st_read(here("prac4", "prac4_data", "World_Countries_(Generalized)", "World_Countries__Generalized_.shp"))
 
-gender_inequality <- read.csv(here::here("prac4_data", "gender inequality (1990-2021).csv"))
+gender_inequality <- read.csv(here::here("prac4", "prac4_data", "gender inequality (1990-2021).csv"))
 
 gender_inequality <- gender_inequality %>%
   clean_names()
 ```
 
-creat column
+select necessary columns
 ```{r}
-gend_in_diff <- gender_inequality %>%
-  mutate(diff1910 = gdi_2019 - gdi_2010)
+gii_2010_2019 <- gender_inequality %>% 
+  select(contains('iso3'), contains('gii_2010'),contains('gii_2019'))
+```
+
+clean data. make new column with difference between gii 2010 and 2019
+```{r}
+gii_2010_2019_diff <- gii_2010_2019 %>%
+  drop_na() %>% 
+  filter(!str_detect(`iso3`, '^ZZ')) %>% 
+  cbind(iso2 = countrycode(.$iso3, origin="iso3c", destination="iso2c"), .) %>%
+  subset(., select=-c(iso3)) %>% 
+  mutate(gii_diff = gii_2019 - gii_2010)
   
 ```
 
-join data
+join gii data to world outline data on iso
 ```{r}
-world_gdi <- world_countries%>%
-  dplyr::left_join(.,
-            gend_in_diff,
-             by = c("COUNTRY" = "country"))
+world_gdi <- world_countries %>% 
+  left_join(.,
+            gii_2010_2019_diff,
+            by=c("ISO"="iso2"))
 ```
 
-plot map
+plot maps
 ```{r}
 library(tmap)
 
-tm_shape(world_gdi) + 
-tm_polygons("diff1910", 
-            # style="pretty",
-            palette="Blues",
-            midpoint=NA,
-            #title="Number of years",
-            alpha = 0.5) + 
-tm_compass(position = c("left", "bottom"),type = "arrow") + 
-tm_scale_bar(position = c("left", "bottom")) +
-tm_layout(title = "difference in gender inequality between 2010 and 2019", 
-          legend.position = c("right", "bottom"))
+tmap_mode("plot")
 
+diff <- tm_shape(world_gdi) + 
+tm_polygons("gii_diff", 
+            style="jenks",
+            palette="-Greens",
+            midpoint=NA,
+            title="Change in Index",
+            alpha = 0.5) + 
+tm_legend(show=FALSE)+
+tm_layout(main.title = "Diff in GII 2010-2019")
+diff
+
+```
+GII 2010 and 2019 maps
+```{r}
+
+#set breaks so each map has same legend
+breaks = c(0,0.15,0.3,0.45,0.6,0.75,0.9)
+
+gii_2010 <- tm_shape(world_gdi) + 
+tm_polygons("gii_2010", 
+            breaks=breaks,
+            palette="Oranges",
+            midpoint=NA,
+            title="Index",
+            alpha = 0.5) + 
+tm_legend(show=FALSE)+
+tm_layout(main.title = "GII 2010", )
+gii_2010
+  
+gii_2019 <- tm_shape(world_gdi) + 
+tm_polygons("gii_2019", 
+            breaks=breaks,
+            palette="Oranges",
+            midpoint=NA,
+            title="Index",
+            alpha = 0.5) + 
+tm_legend(show=FALSE)+
+tm_layout(main.title = "GII 2019")
+gii_2019
+```
+
+legend
+```{r}
+diff_legend <- tm_shape(world_gdi) + 
+tm_polygons("gii_diff", 
+            style="jenks",
+            palette="-Greens",
+            midpoint=NA,
+            title="Change in Index",
+            alpha = 0.5) + 
+tm_scale_bar(position=c(0,0.3), text.size = 0.6)+
+  tm_compass(north=0, position=c(0.65,0.6))+
+tm_layout(legend.only=TRUE, asp=0.1)
+diff_legend
+
+breaks = c(0,0.15,0.3,0.45,0.6,0.75,0.9)
+
+legend_2010_2019 <- tm_shape(world_gdi) + 
+tm_polygons("gii_2010", 
+            breaks=breaks,
+            palette="Oranges",
+            midpoint=NA,
+            title="Index",
+            alpha = 0.5) + 
+tm_layout(legend.only = TRUE)
+legend_2010_2019
+```
+
+
+arrange
+```{r}
+tmap_arrange(gii_2010, gii_2019, legend_2010_2019, diff, diff_legend, ncol=3)
 ```
 
